@@ -1,55 +1,35 @@
-const ByteArray = require('bytearray');
 const Cap = require('cap').Cap;
 const decoders = require('cap').decoders;
 const PROTOCOL = decoders.PROTOCOL;
 const c = new Cap();
-const device = Cap.findDevice('192.168.1.31');
-// const filter = 'tcp and dst port 5555';
+require('dotenv').config();
+const device = Cap.findDevice(process.env.IP_ADDRESS);
 const filter = 'tcp and src port 5555';
 const bufSize = 10 * 1024 * 1024;
-const buffer = Buffer.alloc(535 );
+const buffer = Buffer.alloc(535);
+// SOUNDS
 const Audic = require("audic");
 const beep = new Audic('./sound/beep-07.mp3');
+const police = new Audic('./sound/police.mp3');
+
 const robot = require('robotjs');
-var helper = false;
-const readyButton = [1380, 1000];
-const mobSecond = [1780,1040];
+
+// MOUSE AND KB LISTNER
 const readline = require('readline');
 readline.emitKeypressEvents(process.stdin);
 process.stdin.setRawMode(true);
+
 const  tinKoalak = require('./miner/tinKoalak');
-const currentMine = tinKoalak;
+const tinCaniaKrtek = require('./miner/tinCaniaKrtek');
+
+const currentMine = tinCaniaKrtek;
+const readyButton = [1380, 1000];
+const mobSecond = [1780,1040];
+var helper = false;
 
 robot.setMouseDelay(currentMine.mouseDelay);
 // START
 console.log("LET'S MINE!");
-
-
-
-const tinCaniaDung = [
-    [512, 529],
-    [547, 532],
-    [1151,468],
-    [1230, 502],
-    [1265, 540]
-]
-
-const mapmthreenine = [
-    [161, 166, 3, 570, 700], // 1
-    [160, 152, 3, 600, 700], // 2
-    [159, 253, 2, 700, 650], // 3
-    [155, 169, 2, 700, 450],
-    [153,156, 2 , 730, 450],
-    [151, 129, 2, 820, 430],
-    [236, 243, 1, 880, 430],
-    [148, 216, 1, 940, 420],
-    [149, 217, 1, 1000, 400],
-    [152, 133, 2, 1150, 400], //10
-    [237, 162, 2, 1220, 430],
-    [156, 176, 2, 1270, 450],
-    [157, 219, 2, 1320, 550],
-    [158, 233, 2, 1360, 550] // 14
-]
 
 process.stdin.on('keypress', (str, key) => {
     if ( key.ctrl && key.name === 'c') {
@@ -63,6 +43,9 @@ process.stdin.on('keypress', (str, key) => {
         if (key.name === 'up') {
             mine();
         }
+        if (key.name === 'down') {
+            fight();
+        }
         if (key.name === 'right') {
             console.log(robot.getMousePos());
         }
@@ -70,9 +53,7 @@ process.stdin.on('keypress', (str, key) => {
 })
 
 // SOUND ALERT
-async function playSound() {
-    await beep.play();
-}
+
 
 var linkType = c.open(device, filter, bufSize, buffer);
 
@@ -84,37 +65,21 @@ c.on('packet', (nbytes, trunc) => {
         if (ret.info.type === PROTOCOL.ETHERNET.IPV4) {
             ret = decoders.IPV4(buffer, ret.offset);
             if (ret.info.protocol === PROTOCOL.IP.TCP) {
-                var datalen = ret.info.totallen - ret.hdrlen;
-                ret = decoders.TCP(buffer, ret.offset);
-                datalen -= ret.hdrlen;
                 const dataBuffer = buffer.slice(54,nbytes-1);
-
-
-
+                // ORE RESPAWN
                 if(dataBuffer[0] == 71 && dataBuffer[1]==161 && dataBuffer[9] === 0) {
-                    console.log("Ore do zrobienia! ", dataBuffer[6], dataBuffer[7]);
+                    console.log("Ore to do! ", dataBuffer[6], dataBuffer[7]);
+                    playSound();
                     if(helper){
                         mine();
                     }
                 }
 
-
                 if(helper) {
-                    if (dataBuffer[0] === 133 && dataBuffer[1] === 137) {
-                        robot.moveMouseSmooth(readyButton[0], readyButton[1],1.5);
-                        robot.mouseClick();
-                    }
-                    if ( (dataBuffer[0] === 73 && dataBuffer[1] === 233)){
-                        playSound();
-                        robot.setMouseDelay(500);
-                        robot.moveMouseSmooth(1010, 980,1.3);
-                        robot.mouseClick();
-                        robot.moveMouseSmooth(mobSecond[0],mobSecond[1],1.3);
-                        robot.mouseClick();
-                        robot.moveMouseSmooth(readyButton[0],readyButton[1], 1.6);
-                        robot.mouseClick();
-                        robot.setMouseDelay(0);
-
+                    // PROTECTOR FIGHT
+                    if ((dataBuffer[0] === 73 && dataBuffer[1] === 233)){
+                        playPolice();
+                        fight();
                     }
                 }
             } else if (ret.info.protocol === PROTOCOL.IP.UDP) {
@@ -130,8 +95,22 @@ c.on('packet', (nbytes, trunc) => {
     }
 });
 
+function fight() {
+    new Promise(resolve => setTimeout(resolve, 5000))
+        .then(() => {
+            robot.setMouseDelay(500);
+            robot.moveMouseSmooth(1010, 980,1.3);
+            robot.mouseClick();
+            robot.moveMouseSmooth(mobSecond[0],mobSecond[1],1.3);
+            robot.mouseClick();
+            robot.moveMouseSmooth(readyButton[0],readyButton[1], 1.6);
+            robot.mouseClick();
+            robot.setMouseDelay(40);
+        })
+}
+
 function mine() {
-    new Promise(resolve => setTimeout(resolve,getRandomInt(1000,1600)))
+    new Promise(resolve => setTimeout(resolve,getRandomInt(1500,2000)))
         .then(()=> {
             robot.keyToggle('shift', 'down');
             currentMine.mousePositions.map(position => {
@@ -139,6 +118,7 @@ function mine() {
                 robot.mouseClick();
             })
             robot.keyToggle('shift', 'up');
+            robot.moveMouse(303, 808);
         })
 }
 
@@ -146,6 +126,15 @@ function getRandomInt(min, max) {
     min = Math.ceil(min);
     max = Math.floor(max);
     return Math.floor(Math.random() * (max - min)) + min;
+}
+
+// SOUND FUNCS
+async function playSound() {
+    await beep.play();
+}
+
+async function playPolice() {
+    await police.play();
 }
 
 
