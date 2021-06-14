@@ -5,7 +5,8 @@ module.exports = tinKoalak = {
         [1099, 384],
         [1138, 391, 123, 133],
         [1007,328],
-        [1072, 495]
+        [1072, 495],
+
     ],
-    name: 'Koalak Tin Miner',
+    name: 'Iron Edge',
 }
