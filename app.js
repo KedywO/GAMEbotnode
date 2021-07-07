@@ -2,7 +2,7 @@ const Cap = require('cap').Cap;
 const decoders = require('cap').decoders;
 const PROTOCOL = decoders.PROTOCOL;
 const c = new Cap();
-const device = Cap.findDevice('192.168.1.31');
+const device = Cap.findDevice('');
 const filter = 'tcp and src port 5555';
 const bufSize = 10 * 1024 * 1024;
 const buffer = Buffer.alloc(535 );
@@ -95,8 +95,9 @@ process.stdin.on('keypress', (str, key) => {
             }
 
         }
-        if (key.name === 'up') {
-            // globalCounter++;
+        if (key.name === 'up') { // EMERGENCY BUTTON
+
+            globalCounter++;
         }
         if (key.name === 'right') { // READ CURRENT MOUSE POSITION
             console.log(robot.getMousePos());
@@ -128,15 +129,6 @@ c.on('packet', async (nbytes, trunc) => {
                 ret = decoders.TCP(buffer, ret.offset);
                 datalen -= ret.hdrlen;
                 const dataBuffer = buffer.slice(54,nbytes-1);
-                // if(dataBuffer[0] == 53 && dataBuffer[1]== 181) { // WEJSCIE NA MAPE
-                //     timeStart = new Date().addSeconds(10);
-                // }
-                // if(dataBuffer[0] == 62 && dataBuffer[1]== 153) { // ZACZECIE KOPANIA
-                //     timeStart = new Date().addSeconds(10);
-                // }
-                if(dataBuffer[0] == 70 && dataBuffer[1]== 81 && dataBuffer[dataBuffer.length-1] == 115) { // RUSZENIE SIE
-                    timeStart = new Date().addSeconds(10);
-                }
                 if(dataBuffer[0] == 109 && dataBuffer[1]== 210) { // ZALADOWANIE SIE MAPY
                     // playSound();
                     console.log("6d d2")
@@ -144,12 +136,12 @@ c.on('packet', async (nbytes, trunc) => {
                         globalCounter++;
                     }
                 }
-                if(dataBuffer[0] == 143 && dataBuffer[1]== 209) { // ZALADOWANIE SIE MAPY
+                if(dataBuffer[0] == 143 && dataBuffer[1]== 209) { // Skonczenie kopania
                     // playSound();
                     console.log("8f d1")
-                    if(helper){
-                        globalCounter++;
-                    }
+                    // if(helper){
+                    //     globalCounter++;
+                    // }
                 }
 
 
@@ -179,13 +171,18 @@ const pathMaker = async (currentPath) => {
     let temp = globalCounter;
     console.log("Current path: " + currentPath.name)
     while (true) {
-        for (let i = 0; i < currentPath.mousePositions.length; i++) {
-            await new Promise(res => setTimeout(res, 500))
+        for (let i = 0; i < currentPath.mousePositions.length; i+=2) {
+            robot.keyToggle('shift', 'down');
+            await new Promise(res => setTimeout(res, 200))
             robot.moveMouse(currentPath.mousePositions[i][0], currentPath.mousePositions[i][1]);
-            await new Promise(res => setTimeout(res, 200));
+            await new Promise(res => setTimeout(res, 150));
             robot.mouseClick();
+
+            robot.moveMouse(currentPath.mousePositions[i+1][0], currentPath.mousePositions[i+1][1]);
+            await new Promise(res => setTimeout(res, 150));
+            robot.mouseClick();
+            robot.keyToggle('shift', 'up');
             console.log("Clicking " + currentPath.mousePositions[i][0] + " " + currentPath.mousePositions[i][1])
-            timeStart = new Date();
             temp = await timer(temp);
         }
     }
@@ -193,15 +190,10 @@ const pathMaker = async (currentPath) => {
 
 const timer = async (temp) => {
     while (true) {
-        console.log(new Date() - timeStart);
         if(temp < globalCounter) {
             break;
-        }else if(new Date() - timeStart > 2000){
-            console.log("TIME IS UP!")
-            globalCounter++;
-            break
         }
-        await new Promise(res => setTimeout(res, 700))
+        await new Promise(res => setTimeout(res, 400))
     }
     return globalCounter;
 }
